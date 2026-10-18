@@ -94,6 +94,7 @@ export class ClassicBoundingBoxesEditor {
             this.changed();
         }, toolbar);
         this.deleteButton = this.button(this.t.remove, () => this.removeActive(), toolbar);
+        this.deleteButton.classList.add("cb-delete");
         this.clearButton = this.button(this.t.clear, () => {
             if (!this.regions.length) return;
             this.regions = [];

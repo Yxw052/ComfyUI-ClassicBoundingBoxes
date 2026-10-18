@@ -8,7 +8,7 @@
 .classic-bbox button[aria-pressed="true"] { background:#52525d; border-color:#9999ab; }
 .classic-bbox :focus-visible { outline:2px solid #a3c8ff; outline-offset:2px; }
 .classic-bbox .cb-toolbar,.classic-bbox .cb-tabs { display:flex; flex:none; align-items:center; flex-wrap:wrap; gap:5px; }
-.classic-bbox .cb-toolbar .cb-clear { margin-left:auto; }
+.classic-bbox .cb-toolbar .cb-delete { margin-left:auto; }
 .classic-bbox .cb-stage { position:relative; flex:none; align-self:center; min-width:0; background:#171719; border:1px solid var(--cb-line); border-radius:4px; overflow:hidden; }
 .classic-bbox .cb-stage canvas { position:absolute; inset:0; display:block; width:100%; height:100%; touch-action:none; }
 .classic-bbox .cb-background { position:absolute; inset:0; display:block; width:100%; height:100%; opacity:.5; pointer-events:none; image-rendering:auto; }
