@@ -26,7 +26,8 @@ Disable Nodes 2.0 and add **Create Bounding Boxes (Nodes1.0)**. Replace the offi
 - Drag empty space to draw. Hold Shift to draw inside another region.
 - Move a box by dragging its body. Resize it from its edges or corners.
 - Edit object/text type, text, description and up to five palette colors below the canvas.
-- Select overlapping regions using the inline region list. Object/text tabs switch on the first pointer press. The toolbar contains **Grid, Delete, Clear all**; clearing executes immediately, without a confirmation dialog.
+- Select overlapping regions using the floating region menu. Opening it keeps the image size and all underlying controls in place. Object/text tabs switch on the first pointer press. The toolbar contains **Grid, Delete, Clear all**; clearing executes immediately, without a confirmation dialog.
+- Wheel input over the image, text fields, palette and lower empty area is forwarded to ComfyUI's graph canvas, preserving its configured zoom/pan behavior and pointer anchor.
 - Click a palette swatch to edit, right-click to remove it, and drag swatches to reorder colors. The plus button adds white. The popover matches the official square color field, hue strip, and Hex/RGB inputs.
 - Resize the node from its outer bottom-right corner. Canvas resolution is independent of display size.
 

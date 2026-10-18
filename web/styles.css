@@ -22,7 +22,8 @@
 .classic-bbox .cb-region-selector>button { display:block; position:relative; width:100%; border:0; border-radius:0; text-align:left; padding-right:24px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
 .classic-bbox .cb-region-selector>button::after { content:""; position:absolute; right:10px; top:10px; width:6px; height:6px; border-right:1px solid currentColor; border-bottom:1px solid currentColor; transform:rotate(45deg); }
 .classic-bbox .cb-region-selector.cb-open>button::after { top:13px; transform:rotate(225deg); }
-.classic-bbox .cb-region-list { border-top:1px solid var(--cb-line); padding:3px; }
+.classic-bbox .cb-region-list { position:fixed; inset:auto; margin:0; min-width:0; padding:3px; border:1px solid var(--cb-line); border-radius:4px; overflow:visible; background:var(--cb-panel); color:var(--cb-text); box-shadow:0 4px 12px #0006; }
+.classic-bbox .cb-region-list::backdrop { background:transparent; }
 .classic-bbox .cb-region-list>button { display:block; width:100%; border:0; border-radius:3px; text-align:left; overflow-wrap:anywhere; background:transparent; }
 .classic-bbox .cb-region-list>button[aria-selected="true"] { background:#52525d; }
 .classic-bbox .cb-palette { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:8px; }

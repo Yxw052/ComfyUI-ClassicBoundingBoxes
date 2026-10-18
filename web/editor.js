@@ -64,13 +64,26 @@ export class ClassicBoundingBoxesEditor {
     }
 
     build() {
-        // Keep widget events out of LiteGraph's drag, zoom and hotkey handlers.
+        // Keep editing gestures out of LiteGraph's drag and hotkey handlers.
         for (const name of ["pointerdown", "pointermove", "pointerup", "click", "dblclick", "contextmenu", "keydown", "keyup"]) {
             this.listen(this.root, name, (event) => event.stopPropagation());
         }
         this.listen(this.root, "wheel", (event) => {
             event.preventDefault();
             event.stopPropagation();
+            this.setRegionListOpen(false);
+            // DOM widgets sit above (rather than inside) the graph canvas.
+            // Forward wheel input to the real canvas so ComfyUI retains its
+            // own zoom anchor, trackpad handling, modifiers and zoom limits.
+            const graphCanvas = this.app.canvas?.canvas ?? this.app.canvasEl;
+            graphCanvas?.dispatchEvent(new WheelEvent("wheel", {
+                bubbles: true, cancelable: true, composed: true, view: window,
+                clientX: event.clientX, clientY: event.clientY,
+                screenX: event.screenX, screenY: event.screenY,
+                deltaX: event.deltaX, deltaY: event.deltaY, deltaZ: event.deltaZ,
+                deltaMode: event.deltaMode, ctrlKey: event.ctrlKey,
+                shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
+            }));
         }, { passive: false });
 
         const toolbar = this.toolbar = element("div", "cb-toolbar");
@@ -194,6 +207,7 @@ export class ClassicBoundingBoxesEditor {
         const nextTranslations = String(locale).toLowerCase().startsWith("zh") ? zh : en;
         if (nextTranslations !== this.t) {
             this.t = nextTranslations;
+            this.setRegionListOpen(false);
             this.abort.abort();
             this.closePalette?.();
             this.abort = new AbortController();
@@ -336,6 +350,7 @@ export class ClassicBoundingBoxesEditor {
 
     renderPanel() {
         this.closePalette?.();
+        this.setRegionListOpen(false);
         this.renderButtons();
         this.panel.replaceChildren();
         this.panel.hidden = !this.regions.length;
@@ -350,6 +365,9 @@ export class ClassicBoundingBoxesEditor {
         trigger.setAttribute("aria-haspopup", "listbox");
         trigger.setAttribute("aria-expanded", "false");
         const list = this.regionList = element("div", "cb-region-list");
+        // A top-layer popover never participates in the node's layout and is
+        // not clipped by its DOM widget. Styling still inherits from the node.
+        list.setAttribute("popover", "manual");
         list.setAttribute("role", "listbox");
         list.setAttribute("aria-label", this.t.region);
         list.hidden = true;
@@ -471,10 +489,38 @@ export class ClassicBoundingBoxesEditor {
 
     setRegionListOpen(open) {
         if (!this.regionList) return;
-        this.regionList.hidden = !open;
+        cancelAnimationFrame(this.regionListFrame);
+        const list = this.regionList;
+        if (open) {
+            list.hidden = false;
+            list.showPopover();
+            const trackPosition = () => {
+                if (this.regionList !== list || !list.matches(":popover-open") || !this.root.isConnected) return;
+                this.positionRegionList();
+                this.regionListFrame = requestAnimationFrame(trackPosition);
+            };
+            trackPosition();
+        } else {
+            if (list.matches(":popover-open")) list.hidePopover();
+            list.hidden = true;
+        }
         this.regionTrigger.setAttribute("aria-expanded", String(open));
         this.selector.classList.toggle("cb-open", open);
-        this.layout();
+    }
+
+    positionRegionList() {
+        const trigger = this.regionTrigger;
+        const list = this.regionList;
+        const rect = trigger.getBoundingClientRect();
+        const scale = rect.width / (trigger.offsetWidth || 1);
+        list.style.width = `${rect.width / scale}px`;
+        list.style.transformOrigin = "top left";
+        list.style.transform = `scale(${scale})`;
+        const height = list.offsetHeight * scale;
+        const top = rect.bottom + height <= window.innerHeight - 8
+            ? rect.bottom : Math.max(8, rect.top - height);
+        list.style.left = `${rect.left}px`;
+        list.style.top = `${top}px`;
     }
 
     movePalette(event) {
@@ -659,6 +705,7 @@ export class ClassicBoundingBoxesEditor {
     destroy() {
         clearInterval(this.timer);
         cancelAnimationFrame(this.drawFrame);
+        this.setRegionListOpen(false);
         this.loadGeneration++;
         this.abort.abort();
         this.closePalette?.();
