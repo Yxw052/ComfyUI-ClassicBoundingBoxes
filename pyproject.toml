@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-classic-bounding-boxes"
-version = "0.3.1"
+version = "0.3.2"
 description = "The official ComfyUI Create Bounding Boxes backend with a classic LiteGraph editor."
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"

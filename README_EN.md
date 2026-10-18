@@ -33,7 +33,7 @@ Disable Nodes 2.0 and add **Create Bounding Boxes (Nodes1.0)**. Replace the offi
 
 The grid follows the official 32-pixel snapping rule, with the official large-canvas cell cap. Saved workflows retain the official `editor_state` and `last_incoming` values. English and Chinese labels follow the ComfyUI locale. Unicode metadata is preserved; font rendering in the output preview remains the responsibility of the official backend.
 
-The original background image is fitted to a compact view with its aspect ratio preserved. Its image layer is composited directly by the browser; the separate box overlay follows graph zoom and device pixel ratio instead of enlarging a small bitmap. No internal scrollbar, native OS region dropdown or color picker, swatch delete cross, extra resolution readout, draw button or instructional footer is used. Text fields grow to show wrapped content, including after the node is narrowed.
+The original background image is fitted to a compact view with its aspect ratio preserved. Its size depends on node width and source aspect ratio, so object/text switching and long text never shrink the image; the node grows downward when more space is needed. Its image layer is composited directly by the browser; the separate box overlay follows graph zoom and device pixel ratio instead of enlarging a small bitmap. No internal scrollbar, native OS region dropdown or color picker, swatch delete cross, extra resolution readout, draw button or instructional footer is used. Text fields grow to show wrapped content, including after the node is narrowed.
 
 ## Compatibility and implementation
 

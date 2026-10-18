@@ -322,29 +322,43 @@ export class ClassicBoundingBoxesEditor {
         this.clearButton.disabled = !this.regions.length;
     }
 
+    previewSize() {
+        const { width, height } = this.dimensions();
+        const editorWidth = this.root.clientWidth || this.node.size[0] - 20;
+        const scale = Math.min(Math.min(300, Math.max(1, editorWidth - 16)) / width, 260 / height);
+        return { width: Math.max(1, width * scale), height: Math.max(1, height * scale) };
+    }
+
     minimumHeight() {
-        return 16 + (this.toolbar?.offsetHeight || 28) + (this.panel?.hidden ? 0 : this.panel?.scrollHeight || 0) + 112;
+        return Math.ceil(32 + (this.toolbar?.offsetHeight || 28)
+            + (this.panel?.hidden ? 0 : this.panel?.scrollHeight || 0) + this.previewSize().height);
     }
 
     layout() {
         if (!this.root.isConnected) return;
-        const { width, height } = this.dimensions();
         // Reflow on width changes as well as typing, so wrapped Chinese text
         // remains fully visible when the node is made narrower.
         for (const input of this.panel.querySelectorAll("textarea")) {
             input.style.height = "0px";
             input.style.height = `${Math.max(60, input.scrollHeight + 2)}px`;
         }
-        const panelHeight = this.panel.hidden ? 0 : this.panel.offsetHeight;
-        const available = this.root.clientHeight - this.toolbar.offsetHeight - panelHeight - 32;
-        const maxWidth = Math.min(300, Math.max(1, this.root.clientWidth - 16));
-        const maxHeight = Math.min(260, Math.max(1, available));
-        const scale = Math.min(maxWidth / width, maxHeight / height);
-        this.stage.style.width = `${Math.max(1, width * scale)}px`;
-        this.stage.style.height = `${Math.max(1, height * scale)}px`;
-        // Keep every control reachable without an internal scrollbar.
-        if (available < 96 && !this.app.configuringGraph) {
-            this.node.setSize([this.node.size[0], this.node.size[1] + 96 - available]);
+        // Image size depends only on node width and source aspect ratio. Extra
+        // text fields must grow the node rather than take space from the image.
+        const preview = this.previewSize();
+        this.stage.style.width = `${preview.width}px`;
+        this.stage.style.height = `${preview.height}px`;
+        const required = this.minimumHeight();
+        const rootHeight = this.root.clientHeight;
+        if (rootHeight > 0 && required > rootHeight + 1 && !this.app.configuringGraph) {
+            // DOM allocation updates asynchronously. Request each measured
+            // deficit once so repeated layout passes cannot inflate the node.
+            const key = `${this.root.clientWidth}:${rootHeight}:${required}`;
+            if (key !== this.resizeRequest) {
+                this.resizeRequest = key;
+                this.node.setSize([this.node.size[0], this.node.size[1] + required - rootHeight]);
+            }
+        } else {
+            this.resizeRequest = null;
         }
         this.draw();
     }
