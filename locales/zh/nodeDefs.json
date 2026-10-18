@@ -1,0 +1,19 @@
+{
+  "YxwCreateBoundingBoxesClassic": {
+    "display_name": "创建边界框（旧界面）",
+    "description": "复用官方“创建边界框”的执行代码，为旧版 LiteGraph 界面提供绘制、移动、缩放和描述编辑器。",
+    "inputs": {
+      "background": { "name": "背景", "tooltip": "可选背景图。连接加载图像节点可直接预览；其他上游图像节点请先运行一次。" },
+      "bboxes": { "name": "边界框输入", "tooltip": "可选的边界框、元素数组或 JSON 字符串。上游值改变时重新初始化；否则保留手动编辑。" },
+      "width": { "name": "画布宽度", "tooltip": "画布与边界框坐标的像素宽度，不是节点外框宽度。" },
+      "height": { "name": "画布高度", "tooltip": "画布与边界框坐标的像素高度，不是节点外框高度。" },
+      "editor_state": { "name": "编辑器状态", "tooltip": "随工作流保存的官方边界框数据，由编辑器自动管理。" },
+      "last_incoming": { "name": "上次输入", "tooltip": "用于判断上游数据是否变化的内部状态，由编辑器自动管理。" }
+    },
+    "outputs": {
+      "0": { "name": "预览", "tooltip": "官方代码生成的边界框预览图。" },
+      "1": { "name": "边界框", "tooltip": "像素坐标的边界框，数据类型与官方 BOUNDING_BOX 输出一致。" },
+      "2": { "name": "元素", "tooltip": "包含对象/文字、描述、调色板与归一化边界框的元素数组，可连接官方 FLUX.3 Layout Prompt 或 Build JSON Prompt 节点。" }
+    }
+  }
+}

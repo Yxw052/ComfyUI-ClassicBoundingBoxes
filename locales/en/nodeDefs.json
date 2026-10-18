@@ -1,0 +1,19 @@
+{
+  "YxwCreateBoundingBoxesClassic": {
+    "display_name": "Create Bounding Boxes (Classic)",
+    "description": "The official Create Bounding Boxes backend with an editor for the classic LiteGraph UI.",
+    "inputs": {
+      "background": { "name": "background", "tooltip": "Optional background image. Load Image previews immediately; run other upstream image nodes once." },
+      "bboxes": { "name": "bboxes", "tooltip": "Optional bounding boxes, elements, or JSON. A changed upstream value initializes the editor; local edits otherwise take priority." },
+      "width": { "name": "canvas width", "tooltip": "Canvas pixel width and coordinate grid, independent of the node's display width." },
+      "height": { "name": "canvas height", "tooltip": "Canvas pixel height and coordinate grid, independent of the node's display height." },
+      "editor_state": { "name": "editor state", "tooltip": "Official bounding-box data saved with the workflow. Managed by the editor." },
+      "last_incoming": { "name": "last incoming", "tooltip": "Internal state for upstream change detection. Managed by the editor." }
+    },
+    "outputs": {
+      "0": { "name": "preview", "tooltip": "Bounding-box preview rendered by the official backend." },
+      "1": { "name": "bboxes", "tooltip": "Official pixel-space BOUNDING_BOX output." },
+      "2": { "name": "elements", "tooltip": "Official ARRAY elements, compatible with FLUX.3 Layout Prompt and Build JSON Prompt." }
+    }
+  }
+}

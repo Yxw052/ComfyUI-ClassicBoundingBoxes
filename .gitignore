@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.playwright-cli/
+test-results/
+output/
+.DS_Store

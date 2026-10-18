@@ -1,0 +1,289 @@
+{
+  "id": "6f892e11-9df7-4413-8104-fdb366c1b4e5",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "YxwCreateBoundingBoxesClassic",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        560,
+        940
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "背景",
+          "name": "background",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "边界框输入",
+          "name": "bboxes",
+          "shape": 7,
+          "type": "BOUNDING_BOX,ARRAY,STRING",
+          "link": null
+        },
+        {
+          "localized_name": "画布宽度",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "画布高度",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "编辑器状态",
+          "name": "editor_state",
+          "type": "BOUNDING_BOXES",
+          "widget": {
+            "name": "editor_state"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "上次输入",
+          "name": "last_incoming",
+          "shape": 7,
+          "type": "BOUNDING_BOXES",
+          "widget": {
+            "name": "last_incoming"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "预览",
+          "name": "preview",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "localized_name": "边界框",
+          "name": "bboxes",
+          "type": "BOUNDING_BOX",
+          "links": null
+        },
+        {
+          "localized_name": "元素",
+          "name": "elements",
+          "type": "ARRAY",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "YxwCreateBoundingBoxesClassic"
+      },
+      "widgets_values": [
+        1024,
+        768,
+        [
+          {
+            "x": 125,
+            "y": 140,
+            "width": 295,
+            "height": 450,
+            "metadata": {
+              "type": "obj",
+              "text": "",
+              "desc": "青绿色椭圆，哑光表面",
+              "palette": [
+                "#64979a"
+              ]
+            }
+          },
+          {
+            "x": 570,
+            "y": 180,
+            "width": 310,
+            "height": 390,
+            "metadata": {
+              "type": "text",
+              "text": "你好 ComfyUI",
+              "desc": "橙色矩形中的文字区域",
+              "palette": [
+                "#c26f5b"
+              ]
+            }
+          }
+        ],
+        []
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 768,
+        "editor_state": [
+          {
+            "x": 125,
+            "y": 140,
+            "width": 295,
+            "height": 450,
+            "metadata": {
+              "type": "obj",
+              "text": "",
+              "desc": "青绿色椭圆，哑光表面",
+              "palette": [
+                "#64979a"
+              ]
+            }
+          },
+          {
+            "x": 570,
+            "y": 180,
+            "width": 310,
+            "height": 390,
+            "metadata": {
+              "type": "text",
+              "text": "你好 ComfyUI",
+              "desc": "橙色矩形中的文字区域",
+              "palette": [
+                "#c26f5b"
+              ]
+            }
+          }
+        ],
+        "last_incoming": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "Flux3LayoutPrompt",
+      "pos": [
+        740,
+        100
+      ],
+      "size": [
+        400,
+        300
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "element",
+          "name": "element",
+          "type": "ARRAY",
+          "link": 2
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Flux3LayoutPrompt"
+      },
+      "widgets_values": [
+        "A geometric composition: <obj_1> and <obj_2>."
+      ],
+      "widgets_values_named": {
+        "prompt": "A geometric composition: <obj_1> and <obj_2>."
+      }
+    },
+    {
+      "id": 4,
+      "type": "PreviewAny",
+      "pos": [
+        740,
+        480
+      ],
+      "size": [
+        400,
+        360
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "源",
+          "name": "source",
+          "type": "*",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "字符串",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    }
+  ],
+  "links": [
+    [
+      2,
+      1,
+      2,
+      3,
+      0,
+      "ARRAY"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.85,
+      "offset": [
+        50,
+        30
+      ]
+    },
+    "frontendVersion": "1.55.17"
+  },
+  "version": 0.4
+}

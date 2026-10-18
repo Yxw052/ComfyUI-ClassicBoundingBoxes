@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
+import { ClassicBoundingBoxesEditor } from "./editor.js";
+
+const NODE_ID = "YxwCreateBoundingBoxesClassic";
+const editors = new WeakMap();
+const instances = new Set();
+
+function hideWidget(widget) {
+    if (!widget) return;
+    widget.hidden = true;
+    widget.options ??= {};
+    widget.options.hidden = true;
+    widget.computeSize = () => [0, -4];
+    for (const element of [widget.element, widget.inputEl]) {
+        if (element?.style) element.style.display = "none";
+    }
+}
+
+function attach(node) {
+    if (node.comfyClass !== NODE_ID || editors.has(node)) return;
+    const state = node.widgets?.find((w) => w.name === "editor_state");
+    const incoming = node.widgets?.find((w) => w.name === "last_incoming");
+    if (!state || !incoming) throw new Error("Classic Bounding Boxes: official widgets are missing.");
+    hideWidget(state);
+    hideWidget(incoming);
+
+    const editor = new ClassicBoundingBoxesEditor(node, state, incoming, app, api);
+    editors.set(node, editor);
+    instances.add(editor);
+    // This is a view onto the original widgets, never an extra serialized value.
+    // Keep it last: older frontends restore widgets_values by compacting indices.
+    const domWidget = node.addDOMWidget("classic_bbox_editor", "classic_bbox_editor", editor.root, {
+        serialize: false,
+        hideOnZoom: false,
+        getMinHeight: () => 320,
+        getHeight: () => 500,
+        getValue: () => "",
+    });
+    domWidget.serialize = false;
+    domWidget.options.hideInPanel = true;
+    const oldExecuted = node.onExecuted;
+    node.onExecuted = function (output) {
+        oldExecuted?.apply(this, arguments);
+        editor.onExecuted(output);
+    };
+    const oldRemoved = node.onRemoved;
+    node.onRemoved = function () {
+        editor.destroy();
+        instances.delete(editor);
+        oldRemoved?.apply(this, arguments);
+    };
+    state.beforeQueued = () => editor.beforeQueued();
+    node.setSize([Math.max(node.size[0], 420), Math.max(node.size[1], 640)]);
+}
+
+app.registerExtension({
+    name: "Yxw.ClassicBoundingBoxes",
+    async setup() {
+        if (!document.getElementById("classic-bbox-styles")) {
+            const link = document.createElement("link");
+            link.id = "classic-bbox-styles";
+            link.rel = "stylesheet";
+            link.href = new URL("./styles.css", import.meta.url).href;
+            document.head.append(link);
+        }
+        // Output hooks are not fired when a cached graph is reloaded. Restore
+        // preview references after the graph has finished configuring instead.
+    },
+    nodeCreated(node) { attach(node); },
+    loadedGraphNode(node) { editors.get(node)?.restore(); },
+    afterConfigureGraph() { for (const editor of instances) editor.restore(); },
+});
