@@ -27,7 +27,7 @@
           "link": null
         },
         {
-          "localized_name": "边界框输入",
+          "localized_name": "bboxes",
           "name": "bboxes",
           "shape": 7,
           "type": "BOUNDING_BOX,ARRAY,STRING",

@@ -7,7 +7,9 @@ const NODE_ID = "YxwCreateBoundingBoxesClassic";
 const editors = new WeakMap();
 const instances = new Set();
 
-function refreshDefaultTitle(node) {
+function refreshLabels(node) {
+    const input = node.inputs?.find(input => input.name === "bboxes");
+    if (input) input.localized_name = "bboxes";
     // Upgrade only previous automatic titles; keep user-written titles intact.
     if (!["创建边界框（旧界面）", "Create Bounding Boxes (Classic)"].includes(node.title)) return;
     const locale = app.ui?.settings?.getSettingValue?.("Comfy.Locale") ?? navigator.language;
@@ -28,7 +30,7 @@ function hideWidget(widget) {
 
 function attach(node) {
     if (node.comfyClass !== NODE_ID || editors.has(node)) return;
-    refreshDefaultTitle(node);
+    refreshLabels(node);
     const state = node.widgets?.find((w) => w.name === "editor_state");
     const incoming = node.widgets?.find((w) => w.name === "last_incoming");
     if (!state || !incoming) throw new Error("Classic Bounding Boxes: official widgets are missing.");
@@ -84,9 +86,9 @@ app.registerExtension({
     },
     nodeCreated(node) { attach(node); },
     loadedGraphNode(node) {
-        if (editors.has(node)) { refreshDefaultTitle(node); editors.get(node).restore(); }
+        if (editors.has(node)) { refreshLabels(node); editors.get(node).restore(); }
     },
     afterConfigureGraph() {
-        for (const editor of instances) { refreshDefaultTitle(editor.node); editor.restore(); }
+        for (const editor of instances) { refreshLabels(editor.node); editor.restore(); }
     },
 });
