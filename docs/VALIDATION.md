@@ -27,7 +27,7 @@ With `Comfy.VueNodes.Enabled = false`, real mouse input verified:
 - Drawing and moving a region without moving its containing node.
 - Corner resizing of a region, official 32px grid snapping, and drawing inside an existing region.
 - Object/text switching, Chinese text and description editing, and palette changes.
-- Moving only the selected region vertically without changing selection or element order, and deleting only the selected region.
+- Deleting only the selected region. Dedicated vertical-movement buttons were removed in 0.3.0; boxes remain movable by dragging.
 - Resizing the node's outer bottom-right corner: width increased from 480 to approximately 636, while the editor's displayed width increased from 414 to approximately 554 screen pixels at 90% zoom.
 - Workflow serialize/configure round trips retain exactly four official widget values, with no helper-widget value or index shift.
 - Full browser refresh restores the saved boxes, text and palette.
@@ -47,3 +47,24 @@ At a 320px node width, the editor's inner width measured 300px. A selected text 
 The resolution status row, draw button and instructional text elements were absent. A real up-button click changed only the selected box's Y coordinate by -32 canvas pixels; the other box remained unchanged, and down reversed the movement.
 
 A connected 896×1152 portrait test image was displayed in a 168×217 canvas, preserving its aspect ratio within pixel rounding. The root's scroll height equalled its client height, and the image was shown in full rather than clipped behind a scrollbar.
+
+## Image and interaction revision (0.3.0)
+
+The background is now a separate original-file image element, rather than an image painted into a small canvas and enlarged with the graph. Same-origin ComfyUI `/view` URLs have thumbnail `preview` and channel overrides removed. Load Image reads its selected original file before considering upstream preview images. The transparent overlay uses actual on-screen dimensions multiplied by device pixel ratio and redraws when graph zoom changes.
+
+At device pixel ratio 1, real browser measurements were:
+
+| Graph zoom | Overlay width on screen | Bitmap width |
+| --- | ---: | ---: |
+| 60% | 178.80px | 179px |
+| 100% | 298px | 298px |
+| 123% | 366.54px | 367px |
+| 250% | 745px | 745px |
+
+The background element decoded the original 1024×768 test file with no `preview` query. These checks establish removal of the intermediate low-resolution bitmap; they do not claim recovery of detail absent from the source image.
+
+Real mouse input verified four successive object/text switches, with the selected type updated before the first pointer release. The type buttons keep their DOM elements during field reflow, and the resulting Chinese text survives region selection and workflow save/reload. Toolbar order is Grid / Delete / Clear all, with no up/down buttons. Deletion affects only the selected region. A dialog listener observed zero dialogs when clearing; editor state was empty immediately, and new regions could be drawn afterward.
+
+The native region select was replaced by an inline, consistently styled listbox supporting pointer selection and keyboard navigation. Seven expanded region options fit without internal overflow (root client height and scroll height both 633px). At 320px node width, the inner width was 300px; the 128-character Chinese text field measured 132px for both client and scroll height.
+
+The default Chinese title was verified as `创建边界框（Nodes1.0）`. Loading a workflow with the previous automatic title upgrades it; a user-written custom title remains intact. A full refresh retained both regions and the original background; switching Chinese → English → Chinese kept the image decoded at 1024×768. Keyboard selection through the inline list and Hex palette editing also passed. The seven official/backend execution comparisons passed again after the schema rename. Current screenshots include [the inline list](region-list-zh.png).

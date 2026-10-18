@@ -7,15 +7,15 @@ const copy = (value) => JSON.parse(JSON.stringify(value));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const zh = {
     grid: "网格", clear: "全部清除", region: "选择区域", text: "文字",
-    desc: "描述", palette: "调色板", add: "+", remove: "删除", back: "下移", front: "上移", canvas: "边界框绘制画布",
+    desc: "描述", palette: "调色板", add: "+", remove: "删除", canvas: "边界框绘制画布",
     swatch: "点击编辑 · 拖动排序 · 右键删除",
-    clearConfirm: "清除所有边界框？", failed: "背景预览加载失败，请运行节点以刷新。",
+    failed: "背景预览加载失败，请运行节点以刷新。",
 };
 const en = {
     grid: "Grid", clear: "Clear all", region: "Select region", text: "Text",
-    desc: "Description", palette: "Palette", add: "+", remove: "Delete", back: "Move down", front: "Move up", canvas: "Bounding box drawing canvas",
+    desc: "Description", palette: "Palette", add: "+", remove: "Delete", canvas: "Bounding box drawing canvas",
     swatch: "Click to edit · drag to reorder · right-click to remove",
-    clearConfirm: "Clear all bounding boxes?", failed: "Could not load the background preview. Run the node to refresh it.",
+    failed: "Could not load the background preview. Run the node to refresh it.",
 };
 
 function element(tag, className, text) {
@@ -80,19 +80,27 @@ export class ClassicBoundingBoxesEditor {
             this.renderButtons();
             this.changed();
         }, toolbar);
-        this.button(this.t.clear, () => {
-            if (!this.regions.length || !window.confirm(this.t.clearConfirm)) return;
+        this.deleteButton = this.button(this.t.remove, () => this.removeActive(), toolbar);
+        this.clearButton = this.button(this.t.clear, () => {
+            if (!this.regions.length) return;
             this.regions = [];
             this.active = -1;
             this.commit();
             this.renderPanel();
-        }, toolbar).classList.add("cb-clear");
+        }, toolbar);
+        this.clearButton.classList.add("cb-clear");
 
         this.stage = element("div", "cb-stage");
+        // Let the browser composite the original image at the final zoom level,
+        // rather than enlarging a small intermediate canvas bitmap.
+        this.backgroundImage = element("img", "cb-background");
+        this.backgroundImage.alt = "";
+        this.backgroundImage.draggable = false;
+        if (this.background) this.backgroundImage.src = this.background.src;
         this.canvas = element("canvas");
         this.canvas.tabIndex = 0;
         this.canvas.setAttribute("aria-label", this.t.canvas);
-        this.stage.append(this.canvas);
+        this.stage.append(this.backgroundImage, this.canvas);
         this.listen(this.canvas, "pointerdown", (event) => this.pointerDown(event));
         this.listen(this.canvas, "pointermove", (event) => this.pointerMove(event));
         this.listen(this.canvas, "pointerup", (event) => this.pointerUp(event));
@@ -112,6 +120,9 @@ export class ClassicBoundingBoxesEditor {
         this.listen(document, "pointermove", event => this.movePalette(event), { capture: true });
         this.listen(document, "pointerup", () => { this.paletteDrag = null; }, { capture: true });
         this.listen(document, "pointercancel", () => { this.paletteDrag = null; }, { capture: true });
+        this.listen(document, "pointerdown", event => {
+            if (this.selector && !this.selector.contains(event.target)) this.setRegionListOpen(false);
+        }, { capture: true });
         this.renderButtons();
     }
 
@@ -211,6 +222,7 @@ export class ClassicBoundingBoxesEditor {
             if (this.hadBackgroundConnection) {
                 this.hadBackgroundConnection = false;
                 this.background = null;
+                this.backgroundImage.removeAttribute("src");
                 this.backgroundURL = "";
                 this.loadGeneration++;
                 delete this.node.properties.classicBBoxBackground;
@@ -219,17 +231,15 @@ export class ClassicBoundingBoxesEditor {
             return;
         }
         this.hadBackgroundConnection = true;
-        const sourceImage = upstream.imgs?.[upstream.imageIndex ?? 0] ?? upstream.imgs?.[0];
-        if (sourceImage?.src) {
-            this.loadBackground(sourceImage.src);
-            return;
-        }
         const image = upstream.widgets?.find((w) => w.name === "image")?.value;
         if (upstream.comfyClass === "LoadImage" && typeof image === "string" && image) {
             const match = /\s\[(input|output|temp)\]$/.exec(image);
             const filename = match ? image.slice(0, match.index) : image;
             this.loadBackground(this.imageURL({ filename, type: match?.[1] ?? "input", subfolder: "" }));
+            return;
         }
+        const sourceImage = upstream.imgs?.[upstream.imageIndex ?? 0] ?? upstream.imgs?.[0];
+        if (sourceImage?.src) this.loadBackground(sourceImage.src);
     }
 
     imageURL(ref) {
@@ -239,7 +249,15 @@ export class ClassicBoundingBoxesEditor {
 
     loadBackground(url) {
         if (url) {
-            const params = new URL(url, window.location.href).searchParams;
+            const original = new URL(url, window.location.href);
+            const params = original.searchParams;
+            // Upstream thumbnails can request lossy/reduced previews. For a
+            // ComfyUI /view reference, fetch the original file instead.
+            if (original.origin === window.location.origin && original.pathname.endsWith("/view")) {
+                params.delete("preview");
+                params.delete("channel");
+                url = original.href;
+            }
             const filename = params.get("filename");
             if (filename) this.node.properties.classicBBoxBackground = {
                 filename, type: params.get("type") ?? "input", subfolder: params.get("subfolder") ?? "",
@@ -252,11 +270,14 @@ export class ClassicBoundingBoxesEditor {
         image.onload = () => {
             if (generation !== this.loadGeneration) return;
             this.background = image;
+            this.backgroundImage.src = image.src;
+            this.canvas.removeAttribute("title");
             this.setDimensions(image.naturalWidth, image.naturalHeight);
         };
         image.onerror = () => {
             if (generation !== this.loadGeneration) return;
             this.background = null;
+            this.backgroundImage.removeAttribute("src");
             this.canvas.title = this.t.failed;
             this.draw();
         };
@@ -282,6 +303,8 @@ export class ClassicBoundingBoxesEditor {
 
     renderButtons() {
         this.gridButton.setAttribute("aria-pressed", String(this.grid));
+        this.deleteButton.disabled = !this.regions[this.active];
+        this.clearButton.disabled = !this.regions.length;
     }
 
     minimumHeight() {
@@ -313,50 +336,104 @@ export class ClassicBoundingBoxesEditor {
 
     renderPanel() {
         this.closePalette?.();
+        this.renderButtons();
         this.panel.replaceChildren();
         this.panel.hidden = !this.regions.length;
         if (!this.regions.length) { this.layout(); return; }
-        const select = element("select");
-        select.setAttribute("aria-label", this.t.region);
-        this.regions.forEach((region, index) => {
-            const label = `${String(index + 1).padStart(2, "0")} · ${region.type} · ${region.desc || region.text || "…"}`;
-            const option = element("option", "", label.slice(0, 100));
-            option.value = String(index);
-            select.append(option);
-        });
         if (this.active < 0) this.active = 0;
-        select.value = String(this.active);
-        this.listen(select, "change", () => {
-            this.active = Number(select.value);
-            this.renderPanel();
-            this.draw();
+        const selector = this.selector = element("div", "cb-region-selector");
+        const regionLabel = (region, index) => `${String(index + 1).padStart(2, "0")} · ${region.type} · ${region.desc || region.text || "…"}`.slice(0, 100);
+        const trigger = this.regionTrigger = this.button(regionLabel(this.regions[this.active], this.active), () => {
+            this.setRegionListOpen(this.regionTrigger.getAttribute("aria-expanded") !== "true");
+        }, selector);
+        trigger.setAttribute("aria-label", this.t.region);
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        const list = this.regionList = element("div", "cb-region-list");
+        list.setAttribute("role", "listbox");
+        list.setAttribute("aria-label", this.t.region);
+        list.hidden = true;
+        this.listen(trigger, "keydown", event => {
+            if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+                event.preventDefault();
+                this.setRegionListOpen(true);
+                list.children[this.active]?.focus();
+            }
+            if (event.key === "Escape") this.setRegionListOpen(false);
         });
-        this.panel.append(select);
+        this.listen(list, "keydown", event => {
+            const index = [...list.children].indexOf(document.activeElement);
+            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+                event.preventDefault();
+                const next = event.key === "Home" ? 0 : event.key === "End" ? this.regions.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + this.regions.length) % this.regions.length;
+                list.children[next]?.focus();
+            }
+            if (event.key === "Escape") { this.setRegionListOpen(false); trigger.focus(); }
+        });
+        this.regions.forEach((region, index) => {
+            const option = this.button(regionLabel(region, index), () => {
+                this.active = index;
+                this.renderPanel();
+                this.draw();
+                this.regionTrigger.focus({ preventScroll: true });
+            }, list);
+            option.setAttribute("role", "option");
+            option.setAttribute("aria-selected", String(index === this.active));
+        });
+        selector.append(list);
+        this.panel.append(selector);
         const region = this.regions[this.active];
         if (!region) return;
         const tabs = element("div", "cb-tabs");
+        const fields = element("div", "cb-fields");
+        const typeButtons = [];
+        const activateType = type => {
+            const current = this.regions[this.active];
+            if (!current || current.type === type) return;
+            current.type = type;
+            for (const button of typeButtons) button.setAttribute("aria-pressed", String(button.textContent === type));
+            trigger.textContent = regionLabel(current, this.active);
+            list.children[this.active].textContent = trigger.textContent;
+            renderFields();
+            this.commit();
+        };
         for (const type of ["obj", "text"]) {
-            const button = this.button(type, () => {
-                region.type = type;
-                this.commit();
-                this.renderPanel();
-            }, tabs);
+            const button = this.button(type, () => activateType(type), tabs);
+            // Activate on the first press, retaining the actual button DOM while
+            // the text fields reflow. Click remains the keyboard/AT fallback.
+            this.listen(button, "pointerdown", event => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                button.setPointerCapture(event.pointerId);
+                activateType(type);
+            });
             button.setAttribute("aria-pressed", String(region.type === type));
+            typeButtons.push(button);
         }
-        this.panel.append(tabs);
+        this.panel.append(tabs, fields);
         const field = (name, label) => {
             const wrapper = element("label", "cb-label", label);
             const input = element("textarea");
             input.value = region[name] ?? "";
             input.setAttribute("aria-label", label);
             const fit = () => this.layout();
-            this.listen(input, "input", () => { region[name] = input.value; fit(); this.commit(); });
+            this.listen(input, "input", () => {
+                this.regions[this.active][name] = input.value;
+                trigger.textContent = regionLabel(this.regions[this.active], this.active);
+                list.children[this.active].textContent = trigger.textContent;
+                fit(); this.commit();
+            });
             wrapper.append(input);
-            this.panel.append(wrapper);
+            fields.append(wrapper);
             requestAnimationFrame(fit);
         };
-        if (region.type === "text") field("text", this.t.text);
-        field("desc", this.t.desc);
+        const renderFields = () => {
+            fields.replaceChildren();
+            if (this.regions[this.active].type === "text") field("text", this.t.text);
+            field("desc", this.t.desc);
+            this.layout();
+        };
+        renderFields();
         const palette = element("div", "cb-palette");
         palette.append(element("span", "", this.t.palette));
         region.palette.forEach((color, index) => {
@@ -389,22 +466,15 @@ export class ClassicBoundingBoxesEditor {
             this.renderPanel();
         }, palette);
         this.panel.append(palette);
-        const actions = element("div", "cb-actions");
-        actions.style.marginTop = "8px";
-        this.button(this.t.front, () => this.moveActive(-1), actions).disabled = region.y <= 0;
-        this.button(this.t.back, () => this.moveActive(1), actions).disabled = region.y + region.h >= 1;
-        this.button(this.t.remove, () => this.removeActive(), actions);
-        this.panel.append(actions);
         this.layout();
     }
 
-    moveActive(direction) {
-        const region = this.regions[this.active];
-        if (!region) return;
-        const step = this.grid ? this.gridSpec().fy : 1 / this.dimensions().height;
-        region.y = Math.max(0, Math.min(1 - region.h, region.y + direction * step));
-        this.commit();
-        this.renderPanel();
+    setRegionListOpen(open) {
+        if (!this.regionList) return;
+        this.regionList.hidden = !open;
+        this.regionTrigger.setAttribute("aria-expanded", String(open));
+        this.selector.classList.toggle("cb-open", open);
+        this.layout();
     }
 
     movePalette(event) {
@@ -495,7 +565,7 @@ export class ClassicBoundingBoxesEditor {
         }
         if (event.pointerId !== this.drag.pointerId) return;
         const { mode, start, startPoint } = this.drag;
-        this.regions[this.active] = this.snapRegion(applyDrag(mode, start, point.x - startPoint.x, point.y - startPoint.y), mode);
+        Object.assign(this.regions[this.active], this.snapRegion(applyDrag(mode, start, point.x - startPoint.x, point.y - startPoint.y), mode));
         this.draw();
     }
 
@@ -520,22 +590,27 @@ export class ClassicBoundingBoxesEditor {
         this.renderPanel();
     }
 
+    refreshResolution() {
+        const scale = `${this.app.canvas?.ds?.scale}:${window.devicePixelRatio}`;
+        if (scale === this.drawScale || this.drawFrame) return;
+        this.drawFrame = requestAnimationFrame(() => { this.drawFrame = null; this.draw(); });
+    }
+
     draw() {
-        const width = this.stage.clientWidth;
-        const height = this.stage.clientHeight;
-        if (width < 1 || height < 1) return;
+        const style = getComputedStyle(this.canvas);
+        const width = parseFloat(style.width);
+        const height = parseFloat(style.height);
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) return;
+        const rect = this.canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        this.canvas.width = Math.round(width * dpr);
-        this.canvas.height = Math.round(height * dpr);
+        const pixelWidth = Math.max(1, Math.ceil(rect.width * dpr));
+        const pixelHeight = Math.max(1, Math.ceil(rect.height * dpr));
+        if (this.canvas.width !== pixelWidth) this.canvas.width = pixelWidth;
+        if (this.canvas.height !== pixelHeight) this.canvas.height = pixelHeight;
+        this.drawScale = `${this.app.canvas?.ds?.scale}:${dpr}`;
         const ctx = this.canvas.getContext("2d");
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.fillStyle = "#171719";
-        ctx.fillRect(0, 0, width, height);
-        if (this.background) {
-            ctx.globalAlpha = .5;
-            ctx.drawImage(this.background, 0, 0, width, height);
-            ctx.globalAlpha = 1;
-        }
+        ctx.setTransform(pixelWidth / width, 0, 0, pixelHeight / height, 0, 0);
+        ctx.clearRect(0, 0, width, height);
         if (this.grid) {
             ctx.fillStyle = "#ffffff18";
             const { fx, fy } = this.gridSpec();
@@ -583,6 +658,7 @@ export class ClassicBoundingBoxesEditor {
 
     destroy() {
         clearInterval(this.timer);
+        cancelAnimationFrame(this.drawFrame);
         this.loadGeneration++;
         this.abort.abort();
         this.closePalette?.();

@@ -7,6 +7,14 @@ const NODE_ID = "YxwCreateBoundingBoxesClassic";
 const editors = new WeakMap();
 const instances = new Set();
 
+function refreshDefaultTitle(node) {
+    // Upgrade only previous automatic titles; keep user-written titles intact.
+    if (!["创建边界框（旧界面）", "Create Bounding Boxes (Classic)"].includes(node.title)) return;
+    const locale = app.ui?.settings?.getSettingValue?.("Comfy.Locale") ?? navigator.language;
+    node.title = String(locale).toLowerCase().startsWith("zh")
+        ? "创建边界框（Nodes1.0）" : "Create Bounding Boxes (Nodes1.0)";
+}
+
 function hideWidget(widget) {
     if (!widget) return;
     widget.hidden = true;
@@ -20,6 +28,7 @@ function hideWidget(widget) {
 
 function attach(node) {
     if (node.comfyClass !== NODE_ID || editors.has(node)) return;
+    refreshDefaultTitle(node);
     const state = node.widgets?.find((w) => w.name === "editor_state");
     const incoming = node.widgets?.find((w) => w.name === "last_incoming");
     if (!state || !incoming) throw new Error("Classic Bounding Boxes: official widgets are missing.");
@@ -29,6 +38,11 @@ function attach(node) {
     const editor = new ClassicBoundingBoxesEditor(node, state, incoming, app, api);
     editors.set(node, editor);
     instances.add(editor);
+    const oldDraw = node.onDrawForeground;
+    node.onDrawForeground = function () {
+        oldDraw?.apply(this, arguments);
+        editor.refreshResolution();
+    };
     // This is a view onto the original widgets, never an extra serialized value.
     // Keep it last: older frontends restore widgets_values by compacting indices.
     const domWidget = node.addDOMWidget("classic_bbox_editor", "classic_bbox_editor", editor.root, {
@@ -69,6 +83,10 @@ app.registerExtension({
         // preview references after the graph has finished configuring instead.
     },
     nodeCreated(node) { attach(node); },
-    loadedGraphNode(node) { editors.get(node)?.restore(); },
-    afterConfigureGraph() { for (const editor of instances) editor.restore(); },
+    loadedGraphNode(node) {
+        if (editors.has(node)) { refreshDefaultTitle(node); editors.get(node).restore(); }
+    },
+    afterConfigureGraph() {
+        for (const editor of instances) { refreshDefaultTitle(editor.node); editor.restore(); }
+    },
 });

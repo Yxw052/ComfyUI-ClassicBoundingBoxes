@@ -1,6 +1,6 @@
 {
   "YxwCreateBoundingBoxesClassic": {
-    "display_name": "创建边界框（旧界面）",
+    "display_name": "创建边界框（Nodes1.0）",
     "description": "复用官方“创建边界框”的执行代码，为旧版 LiteGraph 界面提供绘制、移动、缩放和描述编辑器。",
     "inputs": {
       "background": { "name": "背景", "tooltip": "可选背景图。连接加载图像节点可直接预览；其他上游图像节点请先运行一次。" },
