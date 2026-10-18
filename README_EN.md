@@ -35,6 +35,12 @@ The grid follows the official 32-pixel snapping rule, with the official large-ca
 
 The original background image is fitted to a compact view with its aspect ratio preserved. Its size depends on node width and source aspect ratio, so object/text switching and long text never shrink the image; the node grows downward when more space is needed. Its image layer is composited directly by the browser; the separate box overlay follows graph zoom and device pixel ratio instead of enlarging a small bitmap. No internal scrollbar, native OS region dropdown or color picker, swatch delete cross, extra resolution readout, draw button or instructional footer is used. Text fields grow to show wrapped content, including after the node is narrowed.
 
+## Object-reference completion
+
+The classic editor's description/text fields and a connected official **FLUX.3 Layout Prompt** prompt offer `<obj_n>` completion. Type `<`, `>`, `o`, `b`, `j`, `_`, a number, or a partial reference to filter live box IDs. All regions, including text regions, follow the official element order. Click a candidate or use Up/Down and Enter/Tab; Escape dismisses it. Only the fragment at the caret is replaced; surrounding text and native undo are preserved. IME composition is not interrupted. The popup floats near the caret without reflowing the image or controls.
+
+Layout Prompt candidates come from its connected `element` source, optionally through Reroute, rather than unrelated nodes. Adding/removing regions updates candidates. Existing references in saved text are not automatically renumbered. See [the real UI screenshot](docs/object-completion-zh.png).
+
 ## Compatibility and implementation
 
 `CreateBoundingBoxesClassic` inherits the official node and changes only its schema identity and presentation. It **does not override `execute`**. Outputs remain `IMAGE`, `BOUNDING_BOX`, `ARRAY`, in the original order. The frontend geometry and conversion helpers are adapted from ComfyUI_frontend v1.55.17.

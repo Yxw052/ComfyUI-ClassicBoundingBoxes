@@ -80,3 +80,13 @@ Real wheel input over the image canvas, text field, palette row and lower empty 
 The image no longer uses the height left over by the editing panel. Its size depends only on node width and source aspect ratio, capped at 300×260 CSS pixels. The DOM widget's minimum height includes that full image height. Additional fields or wrapped text increase the node height instead of reducing image space; repeated layout passes do not repeatedly request the same height deficit.
 
 Real pointer input performed five alternating text/object switches for each of a 1024×768 landscape image, an 896×1152 portrait image, and the portrait in a 320px-wide node. The landscape stayed exactly 300×225 screen pixels; both portrait cases stayed 202.21875×260. Long Chinese text also kept those image dimensions. In every measurement, the editor's client and scroll heights matched, all text fields fit, and the complete panel stayed within the node. The first landscape text switch increased node height from 612 to 693, then all subsequent switches kept that height; longer text increased it to 733. Workflow serialization/reload retained editor data and image size.
+
+## Object-reference completion (0.4.0)
+
+Pure-function tests verify FLUX.3 array-order numbering (including text regions), all requested symbol/letter triggers, partial/numeric filtering including IDs above nine, replacement ranges inside existing references, adjacent references and ordinary-word boundaries.
+
+Real browser input verified `<`, `>`, `o`, `b`, `j`, `_`, `1`, `2`, and `obj_2` triggers; Up/Down plus Enter insertion; Tab insertion; mouse selection in the middle of Chinese prose without damaging the suffix; native Ctrl+Z restoration; Escape remaining dismissed; and ordinary `photo` text not triggering completion. Synthetic composition events verified that the composing phase stays untouched and completion becomes available after composition ends. This is not an exhaustive audit of every OS IME.
+
+The description and text fields saved inserted references into official metadata. The connected official FLUX.3 Layout Prompt field also accepted references; reducing its upstream editor from two regions to one updated the open menu, while disconnecting `element` removed all candidates. The completion popup left the image rectangle exactly unchanged. An actual no-model workflow run passed the inserted `自动补全验收<obj_2>` through the official FLUX.3 backend, and a serialize/reload round trip preserved both editor and prompt widget values. No generated-image editing quality claim is made.
+
+A real Reroute between the editor and Layout Prompt resolved the same two candidates, with another unconnected editor present. Removing all tested graph nodes left zero completion-popup elements in the document.

@@ -40,6 +40,16 @@ git clone https://github.com/Yxw052/ComfyUI-ClassicBoundingBoxes.git
 
 [查看调色板截图](docs/color-picker-zh.png)
 
+## 快速输入框引用
+
+在本节点的“描述”“文字”，以及连接它的官方 **FLUX.3 Layout Prompt** 提示词框中，输入 `<`、`>`、`o`、`b`、`j`、`_` 或数字，即可弹出 `<obj_n>` 候选。画布有几个框，就提供几个编号；文字框也按官方元素顺序计数。数字和片段可筛选，例如 `2` 或 `obj_2`。
+
+点击候选，或用 ↑/↓ 选择后按 **Enter / Tab** 插入；**Esc** 关闭。只替换光标处的输入片段，不改动前后文字，支持 Ctrl+Z 撤销。候选旁显示对应框的描述，列表悬浮于光标附近，不改变节点布局。中文输入法组词期间不拦截确认键。
+
+官方 Layout Prompt 从其 `element` 连线读取候选，支持中间经过 Reroute；未连接时不提供其他画布上的无关框。删除或新增框会更新候选，已有提示词中的编号保持原文，不自动改写。
+
+![框引用补全](docs/object-completion-zh.png)
+
 中文/英文随 ComfyUI 的界面语言切换。节点标题、端口、参数与提示使用官方 `locales/*/nodeDefs.json` 机制；中文文本按 Unicode 随工作流保存。**预览图中文字的字体渲染仍由官方后端决定**，本适配不更换官方预览字体。
 
 ## 示例

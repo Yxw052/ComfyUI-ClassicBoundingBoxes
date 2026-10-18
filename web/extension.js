@@ -2,10 +2,44 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { ClassicBoundingBoxesEditor } from "./editor.js";
+import { objectTokenOptions } from "./object-tokens.js";
+import { attachObjectCompletion } from "./object-completion.js";
 
 const NODE_ID = "YxwCreateBoundingBoxesClassic";
 const editors = new WeakMap();
 const instances = new Set();
+const layoutCompletions = new WeakMap();
+
+function layoutObjectOptions(node) {
+    const slot = node.inputs?.findIndex(input => input.name === "element");
+    let source = slot >= 0 ? node.getInputNode(slot) : null;
+    const visited = new Set();
+    while (source && !visited.has(source)) {
+        visited.add(source);
+        if ([NODE_ID, "CreateBoundingBoxes"].includes(source.comfyClass)) {
+            return objectTokenOptions(editors.get(source)?.regions ?? source.widgets?.find(widget => widget.name === "editor_state")?.value);
+        }
+        if (source.type !== "Reroute" && source.comfyClass !== "Reroute") break;
+        source = source.getInputNode(0);
+    }
+    return [];
+}
+
+function attachLayoutCompletion(node) {
+    if (node.comfyClass !== "Flux3LayoutPrompt" || layoutCompletions.has(node)) return;
+    const widget = node.widgets?.find(widget => widget.name === "prompt");
+    const input = widget?.element instanceof HTMLTextAreaElement ? widget.element
+        : widget?.element?.querySelector?.("textarea") ?? widget?.inputEl;
+    if (!(input instanceof HTMLTextAreaElement)) return;
+    const locale = app.ui?.settings?.getSettingValue?.("Comfy.Locale") ?? navigator.language;
+    const completion = attachObjectCompletion(input, () => layoutObjectOptions(node), { chinese: String(locale).toLowerCase().startsWith("zh") });
+    layoutCompletions.set(node, completion);
+    const oldRemoved = node.onRemoved;
+    node.onRemoved = function () {
+        completion.destroy(); layoutCompletions.delete(this);
+        oldRemoved?.apply(this, arguments);
+    };
+}
 
 function refreshLabels(node) {
     const input = node.inputs?.find(input => input.name === "bboxes");
@@ -84,8 +118,9 @@ app.registerExtension({
         // Output hooks are not fired when a cached graph is reloaded. Restore
         // preview references after the graph has finished configuring instead.
     },
-    nodeCreated(node) { attach(node); },
+    nodeCreated(node) { attach(node); attachLayoutCompletion(node); },
     loadedGraphNode(node) {
+        attachLayoutCompletion(node);
         if (editors.has(node)) { refreshLabels(node); editors.get(node).restore(); }
     },
     afterConfigureGraph() {

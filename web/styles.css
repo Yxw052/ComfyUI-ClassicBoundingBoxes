@@ -46,3 +46,10 @@
 .classic-bbox-picker input::-webkit-inner-spin-button { appearance:none; }
 .classic-bbox-picker [hidden] { display:none!important; }
 .classic-bbox-picker :focus-visible { outline:2px solid #a3c8ff; outline-offset:2px; }
+
+.cb-object-completions { box-sizing:border-box; position:fixed; inset:auto; margin:0; padding:4px; max-height:240px; overflow-y:auto; scrollbar-width:none; border:1px solid #65656d; border-radius:5px; background:#303033; color:#ededee; box-shadow:0 4px 14px #0007; font:12px/1.4 Arial,"Microsoft YaHei",sans-serif; }
+.cb-object-completions::backdrop { background:transparent; }
+.cb-object-completions>button { box-sizing:border-box; display:flex; align-items:center; gap:12px; width:100%; padding:6px 8px; border:0; border-radius:3px; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.cb-object-completions>button[aria-selected="true"],.cb-object-completions>button:hover { background:#52525d; }
+.cb-object-completions>button>span:first-child { flex:none; font-family:Consolas,monospace; }
+.cb-object-completions .cb-object-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#c1c1c7; }

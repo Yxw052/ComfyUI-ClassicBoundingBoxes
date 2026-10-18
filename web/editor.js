@@ -2,6 +2,8 @@
 // Classic DOM adapter. Geometry/conversion helpers are from ComfyUI_frontend.
 import { applyDrag, boxesAt, fromBoundingBoxes, toBoundingBoxes, tagRects } from "./geometry.js";
 import { openColorPicker } from "./color-picker.js";
+import { objectTokenOptions } from "./object-tokens.js";
+import { attachObjectCompletion } from "./object-completion.js";
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const clamp = (value) => Math.max(0, Math.min(1, value));
@@ -38,6 +40,7 @@ export class ClassicBoundingBoxesEditor {
         this.backgroundURL = "";
         this.loadGeneration = 0;
         this.abort = new AbortController();
+        this.inputCompletions = new Set();
         this.root = element("div", "classic-bbox");
         this.root.dataset.testid = "classic-bbox-editor";
         this.build();
@@ -208,6 +211,7 @@ export class ClassicBoundingBoxesEditor {
         const nextTranslations = String(locale).toLowerCase().startsWith("zh") ? zh : en;
         if (nextTranslations !== this.t) {
             this.t = nextTranslations;
+            this.clearCompletions();
             this.setRegionListOpen(false);
             this.abort.abort();
             this.closePalette?.();
@@ -364,6 +368,7 @@ export class ClassicBoundingBoxesEditor {
     }
 
     renderPanel() {
+        this.clearCompletions();
         this.closePalette?.();
         this.setRegionListOpen(false);
         this.renderButtons();
@@ -458,9 +463,11 @@ export class ClassicBoundingBoxesEditor {
             });
             wrapper.append(input);
             fields.append(wrapper);
+            this.inputCompletions.add(attachObjectCompletion(input, () => objectTokenOptions(this.regions), { chinese: this.t === zh }));
             requestAnimationFrame(fit);
         };
         const renderFields = () => {
+            this.clearCompletions();
             fields.replaceChildren();
             if (this.regions[this.active].type === "text") field("text", this.t.text);
             field("desc", this.t.desc);
@@ -500,6 +507,11 @@ export class ClassicBoundingBoxesEditor {
         }, palette);
         this.panel.append(palette);
         this.layout();
+    }
+
+    clearCompletions() {
+        for (const completion of this.inputCompletions) completion.destroy();
+        this.inputCompletions.clear();
     }
 
     setRegionListOpen(open) {
@@ -718,6 +730,7 @@ export class ClassicBoundingBoxesEditor {
     }
 
     destroy() {
+        this.clearCompletions();
         clearInterval(this.timer);
         cancelAnimationFrame(this.drawFrame);
         this.setRegionListOpen(false);
