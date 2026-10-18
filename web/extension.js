@@ -34,8 +34,8 @@ function attach(node) {
     const domWidget = node.addDOMWidget("classic_bbox_editor", "classic_bbox_editor", editor.root, {
         serialize: false,
         hideOnZoom: false,
-        getMinHeight: () => 320,
-        getHeight: () => 500,
+        getMinHeight: () => editor.minimumHeight(),
+        getHeight: () => 450,
         getValue: () => "",
     });
     domWidget.serialize = false;
@@ -52,7 +52,7 @@ function attach(node) {
         oldRemoved?.apply(this, arguments);
     };
     state.beforeQueued = () => editor.beforeQueued();
-    node.setSize([Math.max(node.size[0], 420), Math.max(node.size[1], 640)]);
+    node.setSize([Math.max(node.size[0], 360), Math.max(node.size[1], 600)]);
 }
 
 app.registerExtension({

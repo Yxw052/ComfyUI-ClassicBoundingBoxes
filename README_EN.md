@@ -23,13 +23,16 @@ Requires ComfyUI's `comfy_extras.nodes_bounding_boxes` and the V3 API. Classic U
 Disable Nodes 2.0 and add **Create Bounding Boxes (Classic)**. Replace the official node in your graph and reconnect its inputs and outputs. The official node itself remains available.
 
 - Connect Load Image to `background` for an immediate preview; run other upstream image nodes once.
-- Drag empty space to draw. Hold Shift or choose **Draw new** to draw inside another region.
+- Drag empty space to draw. Hold Shift to draw inside another region.
 - Move a box by dragging its body. Resize it from its edges or corners.
 - Edit object/text type, text, description and up to five palette colors below the canvas.
-- Select overlapping regions using the dropdown. Reorder or delete the selection with the buttons.
+- Select overlapping regions using the dropdown. **Move up/down changes the selected box's Y coordinate**, keeping selection and element order unchanged. It moves one grid step, or one canvas pixel with the grid off.
+- Click a palette swatch to edit, right-click to remove it, and drag swatches to reorder colors. The plus button adds white. The popover matches the official square color field, hue strip, and Hex/RGB inputs.
 - Resize the node from its outer bottom-right corner. Canvas resolution is independent of display size.
 
 The grid follows the official 32-pixel snapping rule, with the official large-canvas cell cap. Saved workflows retain the official `editor_state` and `last_incoming` values. English and Chinese labels follow the ComfyUI locale. Unicode metadata is preserved; font rendering in the output preview remains the responsibility of the official backend.
+
+The preview is fitted to a smaller canvas with its aspect ratio preserved. No internal scrollbar, native OS color picker, swatch delete cross, extra resolution readout, draw button or instructional footer is used. Text fields grow to show wrapped content, including after the node is narrowed.
 
 ## Compatibility and implementation
 

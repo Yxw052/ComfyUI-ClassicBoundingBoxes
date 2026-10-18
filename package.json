@@ -1,10 +1,10 @@
 {
   "name": "comfyui-classic-bounding-boxes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/geometry.test.mjs",
-    "check": "node --check web/extension.js && node --check web/editor.js && node --check web/geometry.js"
+    "test": "node --test tests/geometry.test.mjs tests/color-utils.test.mjs",
+    "check": "node --check web/extension.js && node --check web/editor.js && node --check web/geometry.js && node --check web/color-picker.js && node --check web/color-utils.js"
   }
 }

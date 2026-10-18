@@ -27,7 +27,7 @@ With `Comfy.VueNodes.Enabled = false`, real mouse input verified:
 - Drawing and moving a region without moving its containing node.
 - Corner resizing of a region, official 32px grid snapping, and drawing inside an existing region.
 - Object/text switching, Chinese text and description editing, and palette changes.
-- Layer reordering and deleting only the selected region.
+- Moving only the selected region vertically without changing selection or element order, and deleting only the selected region.
 - Resizing the node's outer bottom-right corner: width increased from 480 to approximately 636, while the editor's displayed width increased from 414 to approximately 554 screen pixels at 90% zoom.
 - Workflow serialize/configure round trips retain exactly four official widget values, with no helper-widget value or index shift.
 - Full browser refresh restores the saved boxes, text and palette.
@@ -37,3 +37,13 @@ With `Comfy.VueNodes.Enabled = false`, real mouse input verified:
 The screenshot in this repository is from the actual classic ComfyUI canvas, not a mockup.
 
 No inference-quality claim is made: this node edits layout data and inherits the official backend. Very old ComfyUI versions, every third-party pack combination and other browsers are outside this validation.
+
+## Compact editor revision (0.2.0)
+
+Real browser checks additionally passed for white-by-default swatch creation; Hex/RGB input; dragging both the saturation/value field and hue strip; palette swatch reordering; right-click swatch deletion; direct canvas drawing without a draw tool button; and another save/reload round trip. The custom popover replaces the native OS color input and contains no delete cross.
+
+At a 320px node width, the editor's inner width measured 300px. A selected text region containing 128 Chinese characters had a text field client height and scroll height of 132px each. The root client height equalled its scroll height (610px), and the full panel remained inside the node. The compact image canvas preserves the source aspect ratio and is capped at 300×260 CSS pixels; it shrinks further when space is limited.
+
+The resolution status row, draw button and instructional text elements were absent. A real up-button click changed only the selected box's Y coordinate by -32 canvas pixels; the other box remained unchanged, and down reversed the movement.
+
+A connected 896×1152 portrait test image was displayed in a 168×217 canvas, preserving its aspect ratio within pixel rounding. The root's scroll height equalled its client height, and the image was shown in full rather than clipped behind a scrollbar.

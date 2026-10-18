@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Classic DOM adapter. Geometry/conversion helpers are from ComfyUI_frontend.
 import { applyDrag, boxesAt, fromBoundingBoxes, toBoundingBoxes, tagRects } from "./geometry.js";
+import { openColorPicker } from "./color-picker.js";
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const zh = {
-    grid: "网格", clear: "全部清除", draw: "绘制新框", region: "选择区域", text: "文字",
+    grid: "网格", clear: "全部清除", region: "选择区域", text: "文字",
     desc: "描述", palette: "调色板", add: "+", remove: "删除", back: "下移", front: "上移", canvas: "边界框绘制画布",
-    empty: "在画布空白处拖动即可画框；按住 Shift 可在已有框内画新框。",
-    help: "拖动框体移动；拖动边缘或四角缩放。Delete 删除选中框。",
-    background: "连接背景图即可预览；其他上游节点请先运行一次。",
+    swatch: "点击编辑 · 拖动排序 · 右键删除",
     clearConfirm: "清除所有边界框？", failed: "背景预览加载失败，请运行节点以刷新。",
 };
 const en = {
-    grid: "Grid", clear: "Clear all", draw: "Draw new", region: "Select region", text: "Text",
-    desc: "Description", palette: "Palette", add: "+", remove: "Delete", back: "Send backward", front: "Bring forward", canvas: "Bounding box drawing canvas",
-    empty: "Drag empty space to draw. Hold Shift to draw inside an existing box.",
-    help: "Drag a box to move; drag an edge or corner to resize. Delete removes the selection.",
-    background: "Connect a background image. Run once for other upstream nodes.",
+    grid: "Grid", clear: "Clear all", region: "Select region", text: "Text",
+    desc: "Description", palette: "Palette", add: "+", remove: "Delete", back: "Move down", front: "Move up", canvas: "Bounding box drawing canvas",
+    swatch: "Click to edit · drag to reorder · right-click to remove",
     clearConfirm: "Clear all bounding boxes?", failed: "Could not load the background preview. Run the node to refresh it.",
 };
 
@@ -36,7 +33,6 @@ export class ClassicBoundingBoxesEditor {
         this.active = -1;
         this.regions = [];
         this.drag = null;
-        this.newMode = false;
         this.grid = node.properties?.classicBBoxGrid !== false;
         this.background = null;
         this.backgroundURL = "";
@@ -47,6 +43,9 @@ export class ClassicBoundingBoxesEditor {
         this.build();
         this.observer = new ResizeObserver(() => this.draw());
         this.observer.observe(this.stage);
+        this.layoutObserver = new ResizeObserver(() => this.layout());
+        this.layoutObserver.observe(this.root);
+        this.layoutObserver.observe(this.panel);
         // A cheap per-editor source check; no canvas or core prototypes are patched.
         this.timer = setInterval(() => this.checkSources(), 700);
         this.restore();
@@ -70,24 +69,16 @@ export class ClassicBoundingBoxesEditor {
             this.listen(this.root, name, (event) => event.stopPropagation());
         }
         this.listen(this.root, "wheel", (event) => {
-            // Textareas retain their native scrolling; otherwise scroll the editor.
-            if (!(event.target instanceof HTMLTextAreaElement)) {
-                this.root.scrollTop += event.deltaY;
-                event.preventDefault();
-            }
+            event.preventDefault();
             event.stopPropagation();
         }, { passive: false });
 
-        const toolbar = element("div", "cb-toolbar");
+        const toolbar = this.toolbar = element("div", "cb-toolbar");
         this.gridButton = this.button(this.t.grid, () => {
             this.grid = !this.grid;
             this.node.properties.classicBBoxGrid = this.grid;
             this.renderButtons();
             this.changed();
-        }, toolbar);
-        this.drawButton = this.button(this.t.draw, () => {
-            this.newMode = !this.newMode;
-            this.renderButtons();
         }, toolbar);
         this.button(this.t.clear, () => {
             if (!this.regions.length || !window.confirm(this.t.clearConfirm)) return;
@@ -97,7 +88,6 @@ export class ClassicBoundingBoxesEditor {
             this.renderPanel();
         }, toolbar).classList.add("cb-clear");
 
-        this.status = element("p", "cb-status", this.t.background);
         this.stage = element("div", "cb-stage");
         this.canvas = element("canvas");
         this.canvas.tabIndex = 0;
@@ -118,8 +108,10 @@ export class ClassicBoundingBoxesEditor {
             if (event.key === "Escape" && this.drag) this.finishDrag(true);
         });
         this.panel = element("div", "cb-editor");
-        this.hint = element("p", "cb-hint", this.t.empty);
-        this.root.append(toolbar, this.status, this.stage, this.panel, this.hint);
+        this.root.append(toolbar, this.stage, this.panel);
+        this.listen(document, "pointermove", event => this.movePalette(event), { capture: true });
+        this.listen(document, "pointerup", () => { this.paletteDrag = null; }, { capture: true });
+        this.listen(document, "pointercancel", () => { this.paletteDrag = null; }, { capture: true });
         this.renderButtons();
     }
 
@@ -138,13 +130,13 @@ export class ClassicBoundingBoxesEditor {
         this.seenDimensions = `${width}:${height}`;
         if (this.active >= this.regions.length) this.active = this.regions.length - 1;
         this.grid = this.node.properties?.classicBBoxGrid !== false;
-        this.stage.style.aspectRatio = `${width} / ${height}`;
+        this.layout();
         this.renderButtons();
         this.renderPanel();
         const ref = this.node.properties?.classicBBoxBackground;
         if (ref) this.loadBackground(this.imageURL(ref));
         this.checkSources();
-        requestAnimationFrame(() => this.draw());
+        requestAnimationFrame(() => this.layout());
     }
 
     beforeQueued() {
@@ -179,10 +171,9 @@ export class ClassicBoundingBoxesEditor {
                 widget.callback?.(value);
             }
         }
-        this.stage.style.aspectRatio = `${width} / ${height}`;
+        this.layout();
         this.seenDimensions = `${width}:${height}`;
         if (before.width !== width || before.height !== height) this.commit();
-        this.status.textContent = `${width} × ${height}`;
         this.draw();
     }
 
@@ -193,23 +184,24 @@ export class ClassicBoundingBoxesEditor {
         if (nextTranslations !== this.t) {
             this.t = nextTranslations;
             this.abort.abort();
+            this.closePalette?.();
             this.abort = new AbortController();
             this.observer.disconnect();
+            this.layoutObserver.disconnect();
             this.root.replaceChildren();
             this.build();
             this.observer.observe(this.stage);
+            this.layoutObserver.observe(this.root);
+            this.layoutObserver.observe(this.panel);
             this.renderPanel();
-            const dims = this.dimensions();
-            this.stage.style.aspectRatio = `${dims.width} / ${dims.height}`;
-            this.status.textContent = `${dims.width} × ${dims.height}`;
-            this.draw();
+            this.layout();
         }
         const { width, height } = this.dimensions();
         const key = `${width}:${height}`;
         if (key !== this.seenDimensions) {
             // Official region geometry is normalized; resolution changes scale boxes.
             this.seenDimensions = key;
-            this.stage.style.aspectRatio = `${width} / ${height}`;
+            this.layout();
             this.commit();
         } else if (JSON.stringify(this.stateWidget.value) !== this.seenValue) this.restore();
 
@@ -222,7 +214,6 @@ export class ClassicBoundingBoxesEditor {
                 this.backgroundURL = "";
                 this.loadGeneration++;
                 delete this.node.properties.classicBBoxBackground;
-                this.status.textContent = `${width} × ${height}`;
                 this.draw();
             }
             return;
@@ -266,7 +257,7 @@ export class ClassicBoundingBoxesEditor {
         image.onerror = () => {
             if (generation !== this.loadGeneration) return;
             this.background = null;
-            this.status.textContent = this.t.failed;
+            this.canvas.title = this.t.failed;
             this.draw();
         };
         image.src = url;
@@ -291,14 +282,40 @@ export class ClassicBoundingBoxesEditor {
 
     renderButtons() {
         this.gridButton.setAttribute("aria-pressed", String(this.grid));
-        this.drawButton.setAttribute("aria-pressed", String(this.newMode));
+    }
+
+    minimumHeight() {
+        return 16 + (this.toolbar?.offsetHeight || 28) + (this.panel?.hidden ? 0 : this.panel?.scrollHeight || 0) + 112;
+    }
+
+    layout() {
+        if (!this.root.isConnected) return;
+        const { width, height } = this.dimensions();
+        // Reflow on width changes as well as typing, so wrapped Chinese text
+        // remains fully visible when the node is made narrower.
+        for (const input of this.panel.querySelectorAll("textarea")) {
+            input.style.height = "0px";
+            input.style.height = `${Math.max(60, input.scrollHeight + 2)}px`;
+        }
+        const panelHeight = this.panel.hidden ? 0 : this.panel.offsetHeight;
+        const available = this.root.clientHeight - this.toolbar.offsetHeight - panelHeight - 32;
+        const maxWidth = Math.min(300, Math.max(1, this.root.clientWidth - 16));
+        const maxHeight = Math.min(260, Math.max(1, available));
+        const scale = Math.min(maxWidth / width, maxHeight / height);
+        this.stage.style.width = `${Math.max(1, width * scale)}px`;
+        this.stage.style.height = `${Math.max(1, height * scale)}px`;
+        // Keep every control reachable without an internal scrollbar.
+        if (available < 96 && !this.app.configuringGraph) {
+            this.node.setSize([this.node.size[0], this.node.size[1] + 96 - available]);
+        }
+        this.draw();
     }
 
     renderPanel() {
+        this.closePalette?.();
         this.panel.replaceChildren();
         this.panel.hidden = !this.regions.length;
-        this.hint.textContent = this.regions.length ? this.t.help : this.t.empty;
-        if (!this.regions.length) return;
+        if (!this.regions.length) { this.layout(); return; }
         const select = element("select");
         select.setAttribute("aria-label", this.t.region);
         this.regions.forEach((region, index) => {
@@ -332,47 +349,78 @@ export class ClassicBoundingBoxesEditor {
             const input = element("textarea");
             input.value = region[name] ?? "";
             input.setAttribute("aria-label", label);
-            this.listen(input, "input", () => { region[name] = input.value; this.commit(); });
+            const fit = () => this.layout();
+            this.listen(input, "input", () => { region[name] = input.value; fit(); this.commit(); });
             wrapper.append(input);
             this.panel.append(wrapper);
+            requestAnimationFrame(fit);
         };
         if (region.type === "text") field("text", this.t.text);
         field("desc", this.t.desc);
         const palette = element("div", "cb-palette");
         palette.append(element("span", "", this.t.palette));
         region.palette.forEach((color, index) => {
-            const swatch = element("span", "cb-swatch");
-            const input = element("input");
-            input.type = "color";
-            input.value = color.slice(0, 7);
-            input.setAttribute("aria-label", `${this.t.palette} ${index + 1}`);
-            this.listen(input, "input", () => { region.palette[index] = input.value; this.commit(); });
-            swatch.append(input);
-            this.button("×", () => { region.palette.splice(index, 1); this.commit(); this.renderPanel(); }, swatch)
-                .setAttribute("aria-label", `${this.t.remove} ${this.t.palette} ${index + 1}`);
+            const swatch = this.button("", () => {
+                if (Date.now() - (this.lastPaletteDrag || 0) < 300) return;
+                this.closePalette?.();
+                this.closePalette = openColorPicker(swatch, region.palette[index], next => {
+                    region.palette[index] = next;
+                    swatch.style.background = next;
+                    this.commit();
+                }, this.t === zh);
+            }, palette);
+            swatch.className = "cb-swatch";
+            swatch.dataset.index = String(index);
+            swatch.style.background = color;
+            swatch.title = this.t.swatch;
+            swatch.setAttribute("aria-label", `${this.t.palette} ${index + 1}`);
+            this.listen(swatch, "contextmenu", event => {
+                event.preventDefault();
+                region.palette.splice(index, 1); this.commit(); this.renderPanel();
+            });
+            this.listen(swatch, "pointerdown", event => {
+                if (event.button === 0) this.paletteDrag = { index, x: event.clientX, y: event.clientY, region };
+            });
             palette.append(swatch);
         });
         if (region.palette.length < 5) this.button(this.t.add, () => {
-            region.palette.push("#8c8c8c");
+            region.palette.push("#ffffff");
             this.commit();
             this.renderPanel();
         }, palette);
         this.panel.append(palette);
         const actions = element("div", "cb-actions");
         actions.style.marginTop = "8px";
-        this.button(this.t.back, () => this.reorder(-1), actions).disabled = this.active === 0;
-        this.button(this.t.front, () => this.reorder(1), actions).disabled = this.active === this.regions.length - 1;
+        this.button(this.t.front, () => this.moveActive(-1), actions).disabled = region.y <= 0;
+        this.button(this.t.back, () => this.moveActive(1), actions).disabled = region.y + region.h >= 1;
         this.button(this.t.remove, () => this.removeActive(), actions);
         this.panel.append(actions);
+        this.layout();
     }
 
-    reorder(delta) {
-        const target = this.active + delta;
-        if (target < 0 || target >= this.regions.length) return;
-        [this.regions[this.active], this.regions[target]] = [this.regions[target], this.regions[this.active]];
-        this.active = target;
+    moveActive(direction) {
+        const region = this.regions[this.active];
+        if (!region) return;
+        const step = this.grid ? this.gridSpec().fy : 1 / this.dimensions().height;
+        region.y = Math.max(0, Math.min(1 - region.h, region.y + direction * step));
         this.commit();
         this.renderPanel();
+    }
+
+    movePalette(event) {
+        const drag = this.paletteDrag;
+        if (!drag) return;
+        if (!(event.buttons & 1)) { this.paletteDrag = null; return; }
+        if (Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) < 4) return;
+        this.lastPaletteDrag = Date.now();
+        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cb-swatch");
+        if (!target || !this.panel.contains(target)) return;
+        const other = Number(target.dataset.index);
+        if (other === drag.index) return;
+        const [color] = drag.region.palette.splice(drag.index, 1);
+        drag.region.palette.splice(other, 0, color);
+        this.paletteDrag = null;
+        this.commit(); this.renderPanel();
     }
 
     removeActive() {
@@ -420,7 +468,7 @@ export class ClassicBoundingBoxesEditor {
         event.preventDefault();
         this.canvas.focus({ preventScroll: true });
         const startPoint = this.point(event);
-        const hit = this.newMode || event.shiftKey ? null : this.hit(startPoint);
+        const hit = event.shiftKey ? null : this.hit(startPoint);
         const previous = copy(this.regions);
         let mode;
         if (hit) {
@@ -440,7 +488,7 @@ export class ClassicBoundingBoxesEditor {
     pointerMove(event) {
         const point = this.point(event);
         if (!this.drag) {
-            const hit = this.newMode ? null : this.hit(point);
+            const hit = this.hit(point);
             const cursor = { move: "move", "resize-tl": "nwse-resize", "resize-br": "nwse-resize", "resize-tr": "nesw-resize", "resize-bl": "nesw-resize", "resize-t": "ns-resize", "resize-b": "ns-resize", "resize-l": "ew-resize", "resize-r": "ew-resize" };
             this.canvas.style.cursor = cursor[hit?.mode] ?? "crosshair";
             return;
@@ -467,7 +515,6 @@ export class ClassicBoundingBoxesEditor {
         }
         this.drag = null;
         this.active = Math.min(this.active, this.regions.length - 1);
-        this.newMode = false;
         this.renderButtons();
         this.commit();
         this.renderPanel();
@@ -501,6 +548,10 @@ export class ClassicBoundingBoxesEditor {
             const color = region.palette[0] || "#b4b4b8";
             ctx.fillStyle = index === this.active ? "#ffffff15" : "#ffffff07";
             ctx.fillRect(x, y, w, h);
+            region.palette.slice(0, 5).forEach((swatch, i, colors) => {
+                ctx.fillStyle = swatch;
+                ctx.fillRect(x + i * w / colors.length, y, w / colors.length, Math.min(5, h));
+            });
             ctx.strokeStyle = index === this.active ? "#ffffff" : color;
             ctx.lineWidth = index === this.active ? 2 : 1;
             ctx.strokeRect(x, y, w, h);
@@ -534,7 +585,9 @@ export class ClassicBoundingBoxesEditor {
         clearInterval(this.timer);
         this.loadGeneration++;
         this.abort.abort();
+        this.closePalette?.();
         this.observer.disconnect();
+        this.layoutObserver.disconnect();
         this.root.remove();
     }
 }
